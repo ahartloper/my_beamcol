@@ -5,19 +5,20 @@ clc;
 %% 2x2 constant cross-section and Gauss-Lobatto
 
 % Member properties
-a0 = 2;
-b0 = 2;
-aL = 2.;
+a0 = 200.;
+b0 = 200.;
+aL = 200.;
 A_0 = a0 * b0;
 A_L = aL * b0;
-ee = 1.;
-L = 2.;
+ee = 200000.;
+sy0 = 355.;
+L = 2000.;
 n_int_pts_5 = 5;
 n_int_pts_3 = 3;
 
 % Define the fiber section and properties along the length
 % Use nf fibers along y, 1 along z
-nf = 20;
+nf = 8;
 offset = b0 / nf;
 YZ = zeros(nf, 2);
 YZ(:, 1) = -b0 / 2 + offset / 2 + offset * (0:(nf-1));
@@ -34,8 +35,8 @@ A5 = Af_L * ones(nf, n_int_pts_5);
 A3 = Af_L * ones(nf, n_int_pts_3);
 
 % Constitutive law
-% c = @(e) epp_mat(1., 1., e);
-c = @(e) lin_hard_mat(1., 1., 0.1, e);
+c = @(e) epp_mat(ee, sy0, e);
+% c = @(e) lin_hard_mat(1., 1., 0.1, e);
 
 % ei = 0:0.1:1.5;
 % for i = 1:length(ei)
@@ -50,11 +51,38 @@ fixed_dof = [1, 2, 3];
 beam_model_5 = {A5, YZ, L, c, fixed_dof, n_int_pts_5};
 beam_model_3 = {A3, YZ, L, c, fixed_dof, n_int_pts_3};
 
+
+%% Validate stiffness matrix
+
+E = ee * ones(nf, n_int_pts_5);
+S = zeros(nf, n_int_pts_5);
+[Ke, Q] = disp_fiber_GL(A5, E, S, YZ, L, n_int_pts_5);
+
+% Validation matrix, see McGuire, Gallagher, and Ziemian pg. 73 (4.32)
+I = b0 * a0^3 / 12.;
+ke_test = ee * [A_0/L, 0, 0, -A_0/L, 0, 0;
+    0, 12*I/L^3, 6*I/L^2, 0, -12*I/L^3, 6*I/L^2;
+    0, 6*I/L^2, 4*I/L, 0, -6*I/L^2, 2*I/L;
+    -A_0/L, 0, 0, A_0/L, 0, 0;
+    0, -12*I/L^3, -6*I/L^2, 0, 12*I/L^3, -6*I/L^2;
+    0, 6*I/L^2, 2*I/L, 0, -6*I/L^2, 4*I/L];
+
+error = norm(Ke - ke_test) / norm(ke_test)
+
+%% Validate pure tension
+
+S = ones(nf, n_int_pts_5);
+[Ke, Q] = disp_fiber_GL(A5, E, S, YZ, L, n_int_pts_5);
+Q_test = [-a0*b0; 0; 0; a0*b0; 0; 0];
+error = norm(Q - Q_test) / norm(Q_test)
+
+
 %% Set the initial conditions and run load increments
 
+V_end = 450.e3;
 q0 = [0; 0; 0; 0; 0; 0];
-Qfinal = [0; 0; 0; -3.; 2.; 0.];
-n_increments = 10;
+Qfinal = [0; 0; 0; 0; V_end; 0.];
+n_increments = 30;
 q_incr_5 = load_control(q0, Qfinal, beam_model_5, n_increments);
 q_incr_3 = load_control(q0, Qfinal, beam_model_3, n_increments);
 
@@ -76,7 +104,7 @@ xlabel(['q_',num2str(plot_dof)]);
 ylabel(['Q_',num2str(plot_dof)]);
 
 %% Plot the stresses
-i_incr = 10;
+i_incr = n_increments;
 
 % 5pt integration
 r = [0.; -1.; 1.; -sqrt(3./7.); sqrt(3./7.)];
