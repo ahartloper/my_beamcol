@@ -27,6 +27,8 @@
 %   model = {A, YZ, L, c, fixed_dof, npts}
 % 
 %
+% See the test and validation files for examples of input.
+%
 %% Set the initial displacement, external load, and increments
 % 
 % The initial displacement is typically taken as a vector of zeros (no
@@ -42,9 +44,6 @@
 %   n_increments = 10;
 % 
 %
-
-
-
 %% Run the load control
 % 
 % The analysis is simply run using
